@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/smithy-go"
 	"github.com/sst/sst/v3/internal/util"
+	"github.com/sst/sst/v3/pkg/flag"
 
 	ecrTypes "github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -186,11 +187,19 @@ func (p *AwsProvider) Bootstrap(region string) (*AwsBootstrapData, error) {
 		if err != nil {
 			return nil, err
 		}
+		// Upstream sst reads this parameter without decryption, so writing it as
+		// a SecureString locks the account to a binary that decrypts it. Stay on
+		// String unless SST_BOOTSTRAP_SECURE opts in. The read above always asks
+		// for decryption, which AWS ignores for String parameters.
+		parameterType := ssmTypes.ParameterTypeString
+		if flag.SST_BOOTSTRAP_SECURE {
+			parameterType = ssmTypes.ParameterTypeSecureString
+		}
 		_, err = ssmClient.PutParameter(
 			ctx,
 			&ssm.PutParameterInput{
 				Name:      aws.String(SSM_NAME_BOOTSTRAP),
-				Type:      ssmTypes.ParameterTypeSecureString,
+				Type:      parameterType,
 				Overwrite: aws.Bool(true),
 				Value:     aws.String(string(data)),
 			},
