@@ -333,8 +333,8 @@ func configureAssetBucketCodeVersioning(ctx context.Context, cfg aws.Config, dat
 		s3types.LifecycleRule{
 			ID:     aws.String(lambdaCodeAssetLifecycleRuleID),
 			Status: s3types.ExpirationStatusEnabled,
-			Filter: &s3types.LifecycleRuleFilterMemberPrefix{
-				Value: lambdaCodeAssetLifecyclePrefix,
+			Filter: &s3types.LifecycleRuleFilter{
+				Prefix: aws.String(lambdaCodeAssetLifecyclePrefix),
 			},
 			NoncurrentVersionExpiration: &s3types.NoncurrentVersionExpiration{
 				NoncurrentDays:          aws.Int32(lambdaCodeAssetNoncurrentRetainDays),
@@ -344,8 +344,8 @@ func configureAssetBucketCodeVersioning(ctx context.Context, cfg aws.Config, dat
 		s3types.LifecycleRule{
 			ID:     aws.String(legacyFunctionAssetLifecycleRuleID),
 			Status: s3types.ExpirationStatusEnabled,
-			Filter: &s3types.LifecycleRuleFilterMemberPrefix{
-				Value: legacyFunctionAssetLifecyclePrefix,
+			Filter: &s3types.LifecycleRuleFilter{
+				Prefix: aws.String(legacyFunctionAssetLifecyclePrefix),
 			},
 			Expiration: &s3types.LifecycleExpiration{
 				ExpiredObjectDeleteMarker: aws.Bool(true),
