@@ -171,7 +171,21 @@ func (p *AwsProvider) Bootstrap(region string) (*AwsBootstrapData, error) {
 		}
 	}
 
-	if len(steps) > bootstrapData.Version {
+	// Upstream sst reads this parameter without decryption, so storing it as a
+	// SecureString locks the account to a binary that decrypts it. Stay on
+	// String unless SST_BOOTSTRAP_SECURE opts in. The read above always asks for
+	// decryption, which AWS ignores for String parameters.
+	parameterType := ssmTypes.ParameterTypeString
+	if flag.SST_BOOTSTRAP_SECURE {
+		parameterType = ssmTypes.ParameterTypeSecureString
+	}
+	// PutParameter with Overwrite converts the type in either direction, so an
+	// account a previous binary already converted is repaired on next contact
+	// instead of staying pinned until someone rewrites the parameter by hand.
+	typeDrift := result != nil && result.Parameter != nil &&
+		result.Parameter.Value != nil && result.Parameter.Type != parameterType
+
+	if len(steps) > bootstrapData.Version || typeDrift {
 		for index, step := range steps {
 			if bootstrapData.Version > index {
 				continue
@@ -182,19 +196,14 @@ func (p *AwsProvider) Bootstrap(region string) (*AwsBootstrapData, error) {
 				return nil, err
 			}
 		}
-		bootstrapData.Version = len(steps)
+		if len(steps) > bootstrapData.Version {
+			bootstrapData.Version = len(steps)
+		}
 		data, err := json.Marshal(bootstrapData)
 		if err != nil {
 			return nil, err
 		}
-		// Upstream sst reads this parameter without decryption, so writing it as
-		// a SecureString locks the account to a binary that decrypts it. Stay on
-		// String unless SST_BOOTSTRAP_SECURE opts in. The read above always asks
-		// for decryption, which AWS ignores for String parameters.
-		parameterType := ssmTypes.ParameterTypeString
-		if flag.SST_BOOTSTRAP_SECURE {
-			parameterType = ssmTypes.ParameterTypeSecureString
-		}
+		slog.Info("writing bootstrap", "type", parameterType)
 		_, err = ssmClient.PutParameter(
 			ctx,
 			&ssm.PutParameterInput{
