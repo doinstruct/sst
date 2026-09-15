@@ -7,10 +7,7 @@ import { execFileSync } from "child_process";
 let resolved = process.env.SST_BIN_PATH;
 
 if (!resolved) {
-  // Derive the binary package name from our own package name so that a scoped
-  // republish (e.g. "@doinstruct/sst") looks for "@doinstruct/sst-darwin-arm64"
-  // instead of the unscoped upstream package. For the unscoped upstream
-  // package this is exactly the old behaviour.
+  // keep the scope of this package: @doinstruct/sst -> @doinstruct/sst-darwin-arm64
   const { name: pkgName } = require("../package.json");
   const scope = pkgName.startsWith("@") ? `${pkgName.split("/")[0]}/` : "";
   const base = pkgName.replace(/^@[^/]+\//, "");

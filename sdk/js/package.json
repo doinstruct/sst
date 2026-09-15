@@ -1,13 +1,13 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "sst",
+  "name": "@doinstruct/sst",
   "type": "module",
   "sideEffects": false,
   "version": "0.0.0",
   "main": "./dist/index.js",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/anomalyco/sst.git"
+    "url": "git+https://github.com/doinstruct/sst.git"
   },
   "license": "MIT",
   "exports": {
@@ -34,8 +34,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc -w",
-    "release": "./scripts/release.ts",
-    "release:doinstruct": "./scripts/release-doinstruct.ts"
+    "release": "./scripts/release.ts"
   },
   "devDependencies": {
     "@aws/durable-execution-sdk-js-testing": "^1.1.1",
