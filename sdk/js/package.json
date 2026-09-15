@@ -34,7 +34,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc -w",
-    "release": "./scripts/release.ts"
+    "release": "./scripts/release.ts",
+    "release:doinstruct": "./scripts/release-doinstruct.ts"
   },
   "devDependencies": {
     "@aws/durable-execution-sdk-js-testing": "^1.1.1",

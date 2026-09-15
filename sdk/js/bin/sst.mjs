@@ -7,7 +7,14 @@ import { execFileSync } from "child_process";
 let resolved = process.env.SST_BIN_PATH;
 
 if (!resolved) {
-  const name = `sst-${process.platform}-${process.arch}`;
+  // Derive the binary package name from our own package name so that a scoped
+  // republish (e.g. "@doinstruct/sst") looks for "@doinstruct/sst-darwin-arm64"
+  // instead of the unscoped upstream package. For the unscoped upstream
+  // package this is exactly the old behaviour.
+  const { name: pkgName } = require("../package.json");
+  const scope = pkgName.startsWith("@") ? `${pkgName.split("/")[0]}/` : "";
+  const base = pkgName.replace(/^@[^/]+\//, "");
+  const name = `${scope}${base}-${process.platform}-${process.arch}`;
   const binary = process.platform === "win32" ? "sst.exe" : "sst";
 
   try {

@@ -1,0 +1,113 @@
+# Builds the forked SST CLI and publishes @doinstruct/sst (plus its per-platform
+# binary packages) to GitHub Packages.
+#
+# This workflow never runs on push to a branch: merging it changes nothing.
+# It runs only when someone deliberately dispatches it or pushes a fork tag.
+name: publish-doinstruct
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "npm version to publish, e.g. 4.17.1-doinstruct.1"
+        required: true
+        type: string
+      dry_run:
+        description: "Build and npm publish --dry-run only (publishes nothing)"
+        required: true
+        default: true
+        type: boolean
+  push:
+    tags:
+      # only fork tags, never an upstream vX.Y.Z tag
+      - "v*-doinstruct.*"
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve version and mode
+        id: cfg
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+            DRY="${{ inputs.dry_run }}"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+            DRY="false"
+          fi
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "dry=$DRY" >> "$GITHUB_OUTPUT"
+          echo "Publishing @doinstruct/sst@$VERSION (dry run: $DRY)"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@doinstruct"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Download Go modules
+        run: go mod download
+
+      - name: Install dependencies
+        run: bun i --frozen-lockfile
+
+      # Produces platform/dist, which cmd/sst go:embeds. A binary built without
+      # it is broken at runtime, so this must run before build:binaries.
+      # DOCKER_PUSH=false: the bridge-task image is pulled from upstream ghcr.
+      - name: Build platform
+        run: ./platform/scripts/build
+        env:
+          DOCKER_PUSH: false
+
+      - name: Cross-compile CLI binaries
+        run: bun run build:binaries
+        env:
+          SST_VERSION: ${{ steps.cfg.outputs.version }}
+          GOTOOLCHAIN: auto
+
+      - name: Publish to GitHub Packages
+        run: |
+          if [ "${{ steps.cfg.outputs.dry }}" = "true" ]; then
+            bun run release:doinstruct -- --dry-run
+          else
+            bun run release:doinstruct
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload tarballs
+        if: steps.cfg.outputs.dry == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: doinstruct-sst-${{ steps.cfg.outputs.version }}
+          path: dist/packages/*.tgz
+          retention-days: 7

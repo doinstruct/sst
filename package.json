@@ -9,6 +9,8 @@
     "setup": "bun install && go mod tidy && bun run build:platform && bun run build:sdk",
     "build:platform": "bun run --filter @sst/platform build",
     "build:cli": "go build ./cmd/sst",
+    "build:binaries": "bun run ./scripts/doinstruct/build-binaries.mts",
+    "release:doinstruct": "cd sdk/js && bun run ./scripts/release-doinstruct.ts",
     "build:sdk": "bun run --cwd ./sdk/js build",
     "test:cli": "go test ./...",
     "typecheck": "bun run typecheck:platform && bun run typecheck:sdk",
