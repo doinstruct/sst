@@ -32,6 +32,12 @@ var SST_RUN_ID = os.Getenv("SST_RUN_ID")
 var SST_SKIP_APPSYNC = isTrue("SST_SKIP_APPSYNC")
 var SST_NO_BUN = isTrue("NO_BUN") || isTrue("SST_NO_BUN")
 
+// SST_BOOTSTRAP_SECURE writes the /sst/bootstrap SSM parameter as a
+// SecureString instead of a String. Off by default: a SecureString bootstrap
+// parameter is unreadable by upstream sst, which reads it without decryption.
+// Only turn this on if every sst binary touching the account is this fork.
+var SST_BOOTSTRAP_SECURE = isTrue("SST_BOOTSTRAP_SECURE")
+
 func isTrue(name string) bool {
 	val, ok := os.LookupEnv(name)
 	if !ok {
