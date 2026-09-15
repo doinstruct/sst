@@ -183,6 +183,9 @@ func (p *AwsProvider) Bootstrap(region string) (*AwsBootstrapData, error) {
 		}
 		bootstrapData.Version = len(steps)
 		data, err := json.Marshal(bootstrapData)
+		if err != nil {
+			return nil, err
+		}
 		_, err = ssmClient.PutParameter(
 			ctx,
 			&ssm.PutParameterInput{
