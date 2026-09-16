@@ -62,15 +62,18 @@ for (const artifact of artifacts) {
 }
 
 const tag = snapshot ? "snapshot" : "latest";
+// extra flags are handed to npm publish, e.g. `./scripts/release.ts --dry-run`
+const flags = process.argv.slice(2);
 try {
   for (const dir of binaryPackages) {
-    await $`cd ${dir} && npm publish --access public --tag ${tag}`;
+    await $`cd ${dir} && npm publish --access public --tag ${tag} ${flags}`;
   }
   console.log(nextPkg);
   await Bun.write("package.json", JSON.stringify(nextPkg, null, 2));
   await fs.cp("../../README.md", "README.md");
-  await $`npm publish --access public --tag ${tag}`;
+  await $`npm publish --access public --tag ${tag} ${flags}`;
 } finally {
   await Bun.write("package.json", JSON.stringify(pkg, null, 2));
   await fs.rmdir(tmp, { recursive: true });
+  await fs.rm("README.md", { force: true });
 }

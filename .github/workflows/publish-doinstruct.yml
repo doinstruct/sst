@@ -1,0 +1,77 @@
+# Publishes the fork as @doinstruct/sst (+ per-platform binary packages) to
+# GitHub Packages, reusing upstream's goreleaser config and sdk/js release
+# script. Never runs on a branch push: merging this file publishes nothing.
+#
+#   workflow_dispatch          -> snapshot build + `npm publish --dry-run`, publishes nothing
+#   tag push v*-doinstruct.*   -> publishes that version for real
+name: publish-doinstruct
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*-doinstruct.*"
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@f4d14e03ff726c06358e5557344e1da148b56cf7 # v1
+        with:
+          bun-version: latest
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@doinstruct"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Install dependencies
+        run: bun i --frozen-lockfile
+
+      # platform/dist is go:embed'ed into the CLI; a binary built without it is
+      # broken at runtime. DOCKER_PUSH=false only skips pushing the bridge image.
+      - name: Build platform
+        run: ./platform/scripts/build
+        env:
+          DOCKER_PUSH: false
+
+      - name: Build CLI binaries
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: build --clean ${{ github.event_name == 'workflow_dispatch' && '--snapshot' || '' }}
+        env:
+          GOTOOLCHAIN: auto
+
+      - name: Publish to GitHub Packages
+        working-directory: sdk/js
+        run: ./scripts/release.ts ${{ github.event_name == 'workflow_dispatch' && '--dry-run' || '' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

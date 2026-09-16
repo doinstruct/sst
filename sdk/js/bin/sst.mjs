@@ -7,7 +7,11 @@ import { execFileSync } from "child_process";
 let resolved = process.env.SST_BIN_PATH;
 
 if (!resolved) {
-  const name = `sst-${process.platform}-${process.arch}`;
+  // keep the scope of this package: @doinstruct/sst -> @doinstruct/sst-darwin-arm64
+  const { name: pkgName } = require("../package.json");
+  const scope = pkgName.startsWith("@") ? `${pkgName.split("/")[0]}/` : "";
+  const base = pkgName.replace(/^@[^/]+\//, "");
+  const name = `${scope}${base}-${process.platform}-${process.arch}`;
   const binary = process.platform === "win32" ? "sst.exe" : "sst";
 
   try {
